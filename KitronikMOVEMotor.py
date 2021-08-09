@@ -40,6 +40,7 @@ RIGHT_MOTOR = 0x02
 class MOVEMotor:
 
     #An initialisation function to setup the PCA chip correctly
+    #Note that if the :MOVE motor is off the microPython will likely throw OS error 19 - which menas it cant talk to the I2C chip
     def __init__(self):
     
         buffer = bytearray(2)
