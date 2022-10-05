@@ -25,8 +25,8 @@
 from microbit import pin8 #ZIP LEDs
 from microbit import pin0 #Buzzer
 from neopixel import NeoPixel
-from time import sleep
-from music import play,stop,BA_DING
+from microbit import sleep
+from music import play, stop, BA_DING
 
 from KitronikMOVEMotor import *
 
@@ -34,11 +34,11 @@ from KitronikMOVEMotor import *
 buggy = MOVEMotor()
 buggyLights = NeoPixel(pin8, 4)
 #Slightly Blue tint on the Headlights
-buggyLights[0] = [200,200,255] 
-buggyLights[1] = [200,200,255]
+buggyLights[0] = (200,200,255) 
+buggyLights[1] = (200,200,255)
 #Red tail lights
-buggyLights[2] = [255,0,0]
-buggyLights[3] = [255,0,0]
+buggyLights[2] = (255,0,0)
+buggyLights[3] = (255,0,0)
 buggyLights.show()
 
 while True:
