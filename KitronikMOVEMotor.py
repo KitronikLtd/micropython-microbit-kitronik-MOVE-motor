@@ -21,8 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from microbit import i2c, pin3, pin12, display, sleep
-import math
+from microbit import i2c, pin3, pin8, pin12, pin15, pin16, display, sleep
 from neopixel import NeoPixel
 
 # A module to simplify the driving o the motors on Kitronik :MOVE Motor buggy with micro:bit
@@ -34,9 +33,19 @@ MOTOR_OUT_ADDR = 0x08 #MOTOR output register address
 MODE_1_REG_VALUE = 0x00 #setup to normal mode and not to respond to sub address
 MODE_2_REG_VALUE = 0x04  #Setup to make changes on ACK, outputs set to open-drain
 MOTOR_OUT_VALUE = 0xAA  #Outputs set to be controled PWM registers
+
 #Register offsets for the motors
 LEFT_MOTOR = 0x04
 RIGHT_MOTOR = 0x02
+
+# Servo Constants
+SERVO_MIN_PULSE = 500 #microsec
+SERVO_MAX_PULSE = 2500 #microsec
+SERVO_DEGREE_RANGE = 180
+SERVO_DEG_TO_uS = (SERVO_MAX_PULSE - SERVO_MIN_PULSE) / SERVO_DEGREE_RANGE
+SERVO_PWM_PERIOD = 20 #ms
+
+LEDS_NUMBER = 4
 
 class MOVEMotor:
 
@@ -68,9 +77,6 @@ class MOVEMotor:
             except OSError:
                 self.moveMotorVersion = 31
                 self.ws2811 = NeoPixel(pin12, 2)
-                # self.ws2811[0] = (0, 255, 255)
-                # self.ws2811[1] = (255, 0, 255)
-                # self.ws2811.show()
         
         if self.moveMotorVersion != 31:
             try:
@@ -85,130 +91,142 @@ class MOVEMotor:
                 i2c.write(CHIP_ADDR,buffer,False)
             except OSError:
                 raise OSError("Check the Micro:bit is turned on!")
+        
+        # now setup PWM on the servo pin
+        pin15.set_analog_period(SERVO_PWM_PERIOD)
+        pin16.set_analog_period(SERVO_PWM_PERIOD)
 
-    #A couple of 'raw' speed functions for the motors.
-    # these functions expect speed -255 -> +255
-    def LeftMotor(self,speed):
+        # Setup LEDs
+        self.leds = NeoPixel(pin8, LEDS_NUMBER)
+
+    # Function to set the requested motor running in chosen direction at a set speed.
+    # motor = l for left and motor = r for right
+    # direction = f for forward and direction = r for reverse
+    # speed between 0 and 255
+    def motorOn(self, motor, direction, speed):
+        speed = int(speed)
+        if speed > 255:
+            speed = 255
+        elif speed < 0:
+            speed = 0
+        
         if self.moveMotorVersion != 31:
-            motorBuffer=bytearray(2)
-            gndPinBuffer=bytearray(2)
-            if(math.fabs(speed) > 255):
-                motorBuffer[1] = 255
-            elif(math.fabs(speed) < -255):
-                motorBuffer[1] = -255
-            else:
-                motorBuffer[1] = int(math.fabs(speed))
-            gndPinBuffer[1] = 0x00
-            if(speed > 0):
-                #going forwards
-                motorBuffer[0] = LEFT_MOTOR
-                gndPinBuffer[0] =LEFT_MOTOR +1
-            else: #going backwards, or stopping
-                motorBuffer[0] =LEFT_MOTOR +1
-                gndPinBuffer[0] = LEFT_MOTOR
-            i2c.write(CHIP_ADDR,motorBuffer,False)
-            i2c.write(CHIP_ADDR,gndPinBuffer,False)
-
+            # V1 to V2 :MOVE Motor
+            motorForward = bytearray([0, 0])
+            motorBackward = bytearray([0, 0])
+            if motor == "l":
+                # Left motor
+                motorForward[0] = LEFT_MOTOR
+                motorBackward[0] = LEFT_MOTOR + 1
+            elif motor == "r":
+                # Right motor
+                motorForward[0] = RIGHT_MOTOR + 1
+                motorBackward[0] = RIGHT_MOTOR
+            if direction == "f":
+                # Going forwards
+                motorForward[1] = speed
+            elif direction == "r":
+                # Going backwards
+                motorBackward[1] = speed
+            i2c.write(CHIP_ADDR, motorForward, False)
+            i2c.write(CHIP_ADDR, motorBackward, False)
+        
         else:
-            speed = int(speed)
-            if(speed > 255):
-                speed = 255
-            elif(speed < -255):
-                speed = -255
-            m = bytearray(3)
-            mJ = bytearray(3)
-            if(speed > 0):
-                #going forwards
-                m[0] = speed
-                m[1] = 0
-                mJ[0] = 255
-                mJ[1] = 0
-            else: 
-                #going backwards, or stopping
-                m[0] = 0
-                m[1] = speed * -1
-                mJ[0] = 0
-                mJ[1] = 255
-            if speed == 0:
-                m[2] = 255
-            else:
-                m[2] = 0
-                self.ws2811[1] = (mJ[0], mJ[1], mJ[2])
-                self.ws2811.show()
-                sleep(1)
-            self.ws2811[1] = (m[0], m[1], m[2])
+            # V3 :MOVE Motor
+            motorBuf = bytearray([0, 0, 0])
+            motorJump = bytearray([0, 0, 0])
+            wsIndex = 0
+            if motor == "l":
+                # Left motor
+                wsIndex = 1
+                if direction == "f":
+                    # Going forwards
+                    motorBuf[0] = speed
+                    motorJump[0] = 255
+                elif direction == "r":
+                    # Going backwards
+                    motorBuf[1] = speed
+                    motorJump[1] = 255
+            elif motor == "r":
+                # Right motor
+                wsIndex = 0
+                if direction == "f":
+                    # Going forwards
+                    motorBuf[1] = speed
+                    motorJump[1] = 255
+                elif direction == "r":
+                    # Going backwards
+                    motorBuf[0] = speed
+                    motorJump[0] = 255
+            self.ws2811[wsIndex] = (motorJump[0], motorJump[1], motorJump[2])
+            self.ws2811.show()
+            sleep(1) # 1 ms
+            self.ws2811[wsIndex] = (motorBuf[0], motorBuf[1], motorBuf[2])
             self.ws2811.show()
 
-    #speed -255 -> +255
-    def RightMotor(self,speed):
+    # A function that stop a given motor
+    # motor = l for left and motor = r for right
+    def motorOff(self, motor):
         if self.moveMotorVersion != 31:
-            motorBuffer=bytearray(2)
-            gndPinBuffer=bytearray(2)
-
-            if(math.fabs(speed)>255):
-                motorBuffer[1] = 255
-            elif(math.fabs(speed) < -255):
-                motorBuffer[1] = -255
-            else:
-                motorBuffer[1] = int(math.fabs(speed))
-            gndPinBuffer[1] = 0x00
-
-            if(speed >0):
-                #going forwards
-                motorBuffer[0] =RIGHT_MOTOR +1
-                gndPinBuffer[0] = RIGHT_MOTOR
-            else: #going backwards
-                motorBuffer[0] = RIGHT_MOTOR
-                gndPinBuffer[0] =RIGHT_MOTOR +1
-
-            i2c.write(CHIP_ADDR,motorBuffer,False)
-            i2c.write(CHIP_ADDR,gndPinBuffer,False)
-
+            # V1 to V2 :MOVE Motor
+            stopBuffer = bytearray([0, 0])
+            if motor == "l":
+                # Left motor
+                stopBuffer[0] = LEFT_MOTOR
+                i2c.write(CHIP_ADDR, stopBuffer, False)
+                stopBuffer[0] = LEFT_MOTOR + 1
+                i2c.write(CHIP_ADDR, stopBuffer, False)
+            elif motor == "r":
+                # Right motor
+                stopBuffer[0] = RIGHT_MOTOR
+                i2c.write(CHIP_ADDR, stopBuffer, False)
+                stopBuffer[0] = RIGHT_MOTOR + 1
+                i2c.write(CHIP_ADDR, stopBuffer, False)
+        
         else:
-            speed = int(speed)
-            if(speed > 255):
-                speed = 255
-            elif(speed < -255):
-                speed = -255
-            m = bytearray(3)
-            mJ = bytearray(3)
-            if(speed > 0):
-                #going forwards
-                m[0] = 0
-                m[1] = speed
-                mJ[0] = 0
-                mJ[1] = 255
-            else: 
-                #going backwards, or stopping
-                m[0] = speed * -1
-                m[1] = 0
-                mJ[0] = 255
-                mJ[1] = 0
-            if speed == 0:
-                m[2] = 255
-            else:
-                m[2] = 0
-                self.ws2811[0] = (mJ[0], mJ[1], mJ[2])
-                self.ws2811.show()
-                sleep(1)
-            self.ws2811[0] = (m[0], m[1], m[2])
+            # V3 :MOVE Motor
+            if motor == "l":
+                # Left motor
+                self.ws2811[1] = (0, 0, 255)
+            elif motor == "r":
+                # Right motor
+                self.ws2811[0] = (0, 0, 255)
             self.ws2811.show()
-
-    #A function that stops both motors, rather than having to call Left and Right with zero speed.
-    def StopMotors(self):
-        if self.moveMotorVersion != 31:
-            stopBuffer=bytearray(2)
-            stopBuffer[0] = LEFT_MOTOR
-            stopBuffer[1] = 0x00
-            i2c.write(CHIP_ADDR,stopBuffer,False)
-            stopBuffer[0] =LEFT_MOTOR +1
-            i2c.write(CHIP_ADDR,stopBuffer,False)
-            stopBuffer[0] =RIGHT_MOTOR
-            i2c.write(CHIP_ADDR,stopBuffer,False)
-            stopBuffer[0] =RIGHT_MOTOR +1
-            i2c.write(CHIP_ADDR,stopBuffer,False)
-
-        else:
-            self.ws2811[0] = (0, 0, 255)
-            self.ws2811[1] = (0, 0, 255)
-            self.ws2811.show()
+    
+    # Servo Control
+    # servo is expected to be 1 or 2, as per the silk on the buggy.
+    # Servos are on Pins 15 and 16. We write an analog to them.
+    # goToPosition converts degrees to microseconds and calls gotoPeriod, 
+    def goToPosition(self, servo, degrees):
+        period = SERVO_MIN_PULSE + (SERVO_DEG_TO_uS * degrees)
+        self.goToPeriod(servo, period)
+        
+    def goToPeriod(self, servo, period):
+        if servo < 1:
+            servo = 1
+        elif servo > 2:
+            servo = 2
+        if period < SERVO_MIN_PULSE:
+            period = SERVO_MIN_PULSE
+        elif period > SERVO_MAX_PULSE:
+            period = SERVO_MAX_PULSE
+        duty = round(period * 1024 * 50 // 1000000) #1024-steps in analog, 50Hz frequency, // to convert to uS
+        if servo == 1:
+            pin15.write_analog(duty)
+        elif  servo == 2:
+            pin16.write_analog(duty)
+    
+    # LED Control
+    def setLED(self, led, colour):
+        if led < 0:
+            led = 0
+        elif led > LEDS_NUMBER - 1:
+            led = LEDS_NUMBER - 1
+        self.leds[led] = colour
+    
+    def setLEDs(self, colour):
+        for i in range(LEDS_NUMBER):
+            self.setLED(i, colour)
+    
+    def showLEDs(self):
+        self.leds.show()

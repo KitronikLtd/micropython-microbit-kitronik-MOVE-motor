@@ -22,48 +22,35 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from microbit import pin8 #ZIP LEDs
-from microbit import pin0 #Buzzer
-from neopixel import NeoPixel
 from microbit import sleep
-from music import play, stop, BA_DING
-
 from KitronikMOVEMotor import *
 
-#MOVEMotor.setup()
+# Setup buggy
 buggy = MOVEMotor()
-buggyLights = NeoPixel(pin8, 4)
-#Slightly Blue tint on the Headlights
-buggyLights[0] = (200,200,255) 
-buggyLights[1] = (200,200,255)
-#Red tail lights
-buggyLights[2] = (255,0,0)
-buggyLights[3] = (255,0,0)
-buggyLights.show()
+buggy.setLEDs((125, 125, 125))
+buggy.showLEDs()
 
+# Drive around in a semi random manner
 while True:
-    #drive around in a semi random manner
-    play(BA_DING, pin0, True, False)
-    buggy.LeftMotor(255)
-    buggy.RightMotor(255)
-    sleep(1000)
-    buggy.StopMotors()
-    sleep(100)    
-    buggy.LeftMotor(-255)
-    buggy.RightMotor(255)
-    sleep(250)
-    buggy.StopMotors()
-    sleep(100)    
-    buggy.LeftMotor(255)
-    buggy.RightMotor(255)
-    sleep(1000)
-    buggy.StopMotors()
-    sleep(1000)    
-    buggy.LeftMotor(255)
-    buggy.RightMotor(-255)
-    sleep(250)
-    buggy.StopMotors()
-    sleep(100)    
-    buggy.LeftMotor(-255)
-    buggy.RightMotor(-255)
+    buggy.goToPosition(1, 10)
+    buggy.goToPosition(2, 10)
+    buggy.motorOn("l", "f", 255)
     sleep(500)
+    buggy.motorOn("r", "f", 255)
+    sleep(500)
+    buggy.motorOff("l")
+    sleep(500)
+    buggy.goToPosition(1, 90)
+    buggy.goToPosition(2, 90)
+    buggy.motorOff("r")
+    sleep(500)
+    buggy.motorOn("r", "r", 255)
+    sleep(500)
+    buggy.motorOn("l", "r", 255)
+    sleep(500)
+    buggy.motorOff("r")
+    sleep(500)
+    buggy.goToPosition(1, 180)
+    buggy.goToPosition(2, 180)
+    buggy.motorOff("l")
+    sleep(1000)
