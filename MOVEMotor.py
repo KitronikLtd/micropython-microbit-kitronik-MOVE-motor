@@ -25,24 +25,30 @@
 from microbit import sleep
 from KitronikMOVEMotor import *
 
-#MOVEMotor.setup()
+# Setup buggy
 buggy = MOVEMotor()
 
+# Drive around in a semi random manner
 while True:
-    # drive around in a semi random manner
+    buggy.goToPosition(1, 10)
+    buggy.goToPosition(2, 10)
     buggy.LeftMotor(255)
-    sleep(100)
+    sleep(500)
     buggy.RightMotor(255)
-    sleep(100)
+    sleep(500)
     buggy.LeftMotor(0)
-    sleep(100)
+    sleep(500)
+    buggy.goToPosition(1, 90)
+    buggy.goToPosition(2, 90)
     buggy.StopMotors()
-    sleep(100)
+    sleep(500)
     buggy.RightMotor(-255)
-    sleep(100)
+    sleep(500)
     buggy.LeftMotor(-255)
-    sleep(100)
+    sleep(500)
     buggy.RightMotor(0)
-    sleep(100)
+    sleep(500)
+    buggy.goToPosition(1, 180)
+    buggy.goToPosition(2, 180)
     buggy.StopMotors()
-    sleep(100)
+    sleep(1000)

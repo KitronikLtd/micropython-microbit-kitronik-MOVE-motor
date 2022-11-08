@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from microbit import i2c, pin3, pin12, display, sleep
+from microbit import i2c, pin3, pin12, pin15, pin16, display, sleep
 from neopixel import NeoPixel
 
 # A module to simplify the driving o the motors on Kitronik :MOVE Motor buggy with micro:bit
@@ -33,9 +33,17 @@ MOTOR_OUT_ADDR = 0x08 #MOTOR output register address
 MODE_1_REG_VALUE = 0x00 #setup to normal mode and not to respond to sub address
 MODE_2_REG_VALUE = 0x04  #Setup to make changes on ACK, outputs set to open-drain
 MOTOR_OUT_VALUE = 0xAA  #Outputs set to be controled PWM registers
+
 #Register offsets for the motors
 LEFT_MOTOR = 0x04
 RIGHT_MOTOR = 0x02
+
+# Servo Constants
+SERVO_MIN_PULSE = 500 #microsec
+SERVO_MAX_PULSE = 2500 #microsec
+SERVO_DEGREE_RANGE = 180
+SERVO_DEG_TO_uS = (SERVO_MAX_PULSE - SERVO_MIN_PULSE) / SERVO_DEGREE_RANGE
+SERVO_PWM_PERIOD = 20 #ms
 
 class MOVEMotor:
 
@@ -81,6 +89,10 @@ class MOVEMotor:
                 i2c.write(CHIP_ADDR,buffer,False)
             except OSError:
                 raise OSError("Check the Micro:bit is turned on!")
+        
+        # now setup PWM on the servo pin
+        pin15.set_analog_period(SERVO_PWM_PERIOD)
+        pin16.set_analog_period(SERVO_PWM_PERIOD)
 
     # A couple of 'raw' speed functions for the motors.
     # these functions expect speed -255 -> +255
@@ -191,3 +203,26 @@ class MOVEMotor:
             self.ws2811[0] = (0, 0, 255)
             self.ws2811[1] = (0, 0, 255)
             self.ws2811.show()
+    
+    # Servo Control
+    # servo is expected to be 1 or 2, as per the silk on the buggy.
+    # Servos are on Pins 15 and 16. We write an analog to them.
+    # goToPosition converts degrees to microseconds and calls gotoPeriod, 
+    def goToPosition(self, servo, degrees):
+        period = SERVO_MIN_PULSE + (SERVO_DEG_TO_uS * degrees)
+        self.goToPeriod(servo, period)
+        
+    def goToPeriod(self, servo, period):
+        if servo < 1:
+            servo = 1
+        elif servo > 2:
+            servo = 2
+        if period < SERVO_MIN_PULSE:
+            period = SERVO_MIN_PULSE
+        elif period > SERVO_MAX_PULSE:
+            period = SERVO_MAX_PULSE
+        duty = round(period * 1024 * 50 // 1000000) #1024-steps in analog, 50Hz frequency, // to convert to uS
+        if servo == 1:
+            pin15.write_analog(duty)
+        elif  servo == 2:
+            pin16.write_analog(duty)
