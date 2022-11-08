@@ -22,48 +22,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from microbit import pin8 #ZIP LEDs
-from microbit import pin0 #Buzzer
-from neopixel import NeoPixel
 from microbit import sleep
-from music import play, stop, BA_DING
-
 from KitronikMOVEMotor import *
 
 #MOVEMotor.setup()
 buggy = MOVEMotor()
-buggyLights = NeoPixel(pin8, 4)
-#Slightly Blue tint on the Headlights
-buggyLights[0] = (200,200,255) 
-buggyLights[1] = (200,200,255)
-#Red tail lights
-buggyLights[2] = (255,0,0)
-buggyLights[3] = (255,0,0)
-buggyLights.show()
 
 while True:
-    #drive around in a semi random manner
-    play(BA_DING, pin0, True, False)
+    # drive around in a semi random manner
     buggy.LeftMotor(255)
+    sleep(100)
     buggy.RightMotor(255)
-    sleep(1000)
+    sleep(100)
+    buggy.LeftMotor(0)
+    sleep(100)
     buggy.StopMotors()
-    sleep(100)    
-    buggy.LeftMotor(-255)
-    buggy.RightMotor(255)
-    sleep(250)
-    buggy.StopMotors()
-    sleep(100)    
-    buggy.LeftMotor(255)
-    buggy.RightMotor(255)
-    sleep(1000)
-    buggy.StopMotors()
-    sleep(1000)    
-    buggy.LeftMotor(255)
+    sleep(100)
     buggy.RightMotor(-255)
-    sleep(250)
-    buggy.StopMotors()
-    sleep(100)    
+    sleep(100)
     buggy.LeftMotor(-255)
-    buggy.RightMotor(-255)
-    sleep(500)
+    sleep(100)
+    buggy.RightMotor(0)
+    sleep(100)
+    buggy.StopMotors()
+    sleep(100)
